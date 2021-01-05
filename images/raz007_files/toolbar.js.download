@@ -1,0 +1,997 @@
+/**
+ * PriceBlink toolbar: help you to find coupons and better prices.
+ * @date 30-07-2016
+ * @author Shaojiang Cai shaojiang@toptal.com
+ */
+$(function () {
+  /**
+   * Creates and returns a new debounced version of the passed function which will postpone
+   *   its execution until after wait milliseconds have elapsed since the last time it was invoked.
+   *
+   * @param {Function} fn: the function to execute
+   * @param {Number} ms: milliseconds to delay execution
+   */
+  $.joy = {
+    debounce: (function () {
+      var timer;
+      return function (fn, ms) {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(fn, ms);
+      };
+    })(),
+    get: function (obj, path) {
+      var attrs = path.split('.'),
+        i = 0, len = attrs.length,
+        value = obj;
+      while (i < len && value) {
+        value = value[attrs[i]];
+        i++;
+      }
+      return (value === obj) ? undefined : value;
+    },
+    extractParam: function (full, param) {
+      if (typeof full !== 'string') return '';
+      var parts = full.split('&' + param + '=');
+      if (parts.length < 2) return '';
+      var value = '';
+      parts[1].replace(/^[\w\-]+/, function (hit) {
+        value = hit;
+      });
+      return value;
+    },
+    copyToClipboard: function (text) {
+      var $temp = $("<textarea>");
+      $("body").append($temp);
+      $temp.val(text).select();
+      document.execCommand("copy");
+      $temp.remove();
+    },
+    getCookie: function(name) {
+      var search = name + "="
+      var returnvalue = "";
+      if (document.cookie.length > 0) {
+        offset = document.cookie.indexOf(search);
+        if (offset != -1) {
+          offset += search.length
+          end = document.cookie.indexOf(";", offset);
+
+          if (end == -1) end = document.cookie.length;
+            returnvalue = unescape(document.cookie.substring(offset, end))
+          }
+      }
+      return returnvalue;
+    }
+  };
+  /*! jquery.cookie v1.4.1 | MIT */
+  !function (a) {
+    "function" == typeof define && define.amd ? define(["jquery"], a) : "object" == typeof exports ? a(require("jquery")) : a(jQuery)
+  }(function (a) {
+    function b(a) {
+      return h.raw ? a : encodeURIComponent(a)
+    }
+
+    function c(a) {
+      return h.raw ? a : decodeURIComponent(a)
+    }
+
+    function d(a) {
+      return b(h.json ? JSON.stringify(a) : String(a))
+    }
+
+    function e(a) {
+      0 === a.indexOf('"') && (a = a.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\"));
+      try {
+        return a = decodeURIComponent(a.replace(g, " ")), h.json ? JSON.parse(a) : a
+      } catch (b) {
+      }
+    }
+
+    function f(b, c) {
+      var d = h.raw ? b : e(b);
+      return a.isFunction(c) ? c(d) : d
+    }
+
+    var g = /\+/g, h = a.cookie = function (e, g, i) {
+      if (void 0 !== g && !a.isFunction(g)) {
+        if (i = a.extend({}, h.defaults, i), "number" == typeof i.expires) {
+          var j = i.expires, k = i.expires = new Date;
+          k.setTime(+k + 864e5 * j)
+        }
+        return document.cookie = [b(e), "=", d(g), i.expires ? "; expires=" + i.expires.toUTCString() : "", i.path ? "; path=" + i.path : "", i.domain ? "; domain=" + i.domain : "", i.secure ? "; secure" : ""].join("")
+      }
+      for (var l = e ? void 0 : {}, m = document.cookie ? document.cookie.split("; ") : [], n = 0, o = m.length; o > n; n++) {
+        var p = m[n].split("="), q = c(p.shift()), r = p.join("=");
+        if (e && e === q) {
+          l = f(r, g);
+          break
+        }
+        e || void 0 === (r = f(r)) || (l[q] = r)
+      }
+      return l
+    };
+    h.defaults = {}, a.removeCookie = function (b, c) {
+      return void 0 === a.cookie(b) ? !1 : (a.cookie(b, "", a.extend({}, c, {expires: -1})), !a.cookie(b))
+    }
+  });
+
+  // Check if this is a PPG page
+  var ppg = 0;
+  // Temporary click analysis
+  var g_retailer_name = "";
+  // Partner id: '1' - InvisibleHand
+  var partnerid = '';
+
+  // Listen for messages from extension
+  if (window.addEventListener) {
+    window.addEventListener("message", handleMessage, false);
+  } else if (window.attachEvent) {
+    window.attachEvent("onmessage", handleMessage);
+  }
+
+  //Check if ppg is set in url
+  if (window.location.href.indexOf("ppg=1") >= 0) {
+    ppg = 1;
+  }
+
+  // Check partner id
+  /**
+   * Storage of parameters in the URL
+   */
+  var urlParams = (function _param() {
+    var regex = /([^&=]+)=?([^&]*)/g;
+    var match, store = {};
+
+    var haystack = window.location.search || window.location.hash;
+    haystack = haystack.substring(haystack.indexOf('?') + 1, haystack.length);
+
+    while ((match = regex.exec(haystack))) {
+      store[decodeURIComponent(match[1])] = decodeURIComponent(match[2]);
+    }
+
+    return function (needle) {
+      return store[needle];
+    };
+  })();
+
+  // Set flag for InvisibleHand
+  partnerid = urlParams('partnerid');
+
+  function isFromInvisibleHand() {
+    return partnerid === '1';
+  }
+
+  // If it is from InvisibleHand-Chrome
+  if (isFromInvisibleHand()) {
+    $('#settingsDropdown .need-help').attr('href', 'https://invisiblehand.zendesk.com/hc/en-us');
+    $('#logoImg').attr('src', 'images/invisible-hand-logo.png');
+    $('.toolbar-message-brand').text('InvisibleHand');
+    $('#minimizedLogo').attr('src', 'images/ih_logo.png');
+  } else {
+    $('#logoImg').attr('src', 'images/logo_grey.png');
+    $('.toolbar-message-brand').text('PriceBlink');
+  }
+
+  var showThreeColumns = urlParams('tax') === '1';
+
+  // Some pre-fetched DOM elements
+  var $doms = {
+    theme: 'default',
+    window: $(window),
+    fullScreenOverlay: $('#fullScreenOverlay'),
+    couponsBtn: $('#couponsBtn'),
+    comparePricesBtn: $('#comparePricesBtn'),
+    reviewsBtn: $('#reviewsBtn'),
+    toolbarLeft: $('#toolbarLeft'),
+    toolbarRight: $('#toolbarRight'),
+    toolbarCenter: $('#toolbarCenter'),
+    messageTitle: $('#messageTitle'),
+    message: $('#message'),
+    toolbarBtns: $('#toolbarBtns'),
+    wishListIcon: $('#wishListIcon'),
+    priceHistoryIcon: $('#priceHistoryIcon'),
+    closeToolbarIcon: $('#closeToolbarIcon'),
+    settingsIcon: $('#settingsIcon'),
+    parent: {
+      minimize: function () {
+        // timeout to wait for the sliding up animation to finish
+        setTimeout(function () {
+          parent.postMessage('minimize', '*');
+          $doms.fullScreenOverlay.hide();
+        }, 500);
+      },
+      maximize: function () {
+        parent.postMessage('maximize', '*');
+        $doms.fullScreenOverlay.show();
+      },
+      close: function () {
+        parent.postMessage('close', '*');
+      },
+      hide: function () {
+        parent.postMessage('hide', '*');
+      },
+      options: function () {
+        parent.postMessage('options', '*');
+      },
+      restore: function () {
+        parent.postMessage('restore', '*');
+      },
+      openUrl: function (url) {
+        parent.postMessage('openUrl' + url, '*');
+      }
+    }
+  };
+
+  /**
+   * Dispatch the user behaviours
+   * @param e
+   */
+  function handleMessage(e) {
+    var data = e.data;
+    // This is the case where we display custom messaging for the bookmarklet.
+    if (data.indexOf("custom_message") != -1) {
+      displayCustomMessage(data);
+      return;
+    }
+
+    try { // In case the JSON parse is wrong.
+      var len = data.split("|||").length;
+      // Just Coupons
+      if (len == 1) {
+        var coupons = jQuery.parseJSON(data);
+        showGoldenToolbar(coupons[0]);
+        populateCouponsDropdown(coupons);
+        autoExpand(coupons[0]);
+      } else {
+        data = data.split("|||");
+        var coupons = jQuery.parseJSON(data[0]) || [];
+        var products = jQuery.parseJSON(data[1]) || [];
+        var reviews = products[0]['rating'];
+        showGoldenToolbar(coupons[0], products[0]);
+        populateCouponsDropdown(coupons);
+        populateComparePricesDropdown(products, coupons);
+        populateReviewsDropdown(reviews);
+        autoExpand(coupons[0], products[0]);
+      }
+    } catch (e) {
+    }
+
+
+    function autoExpand(coupons, products) {
+      coupons = coupons || {};
+      var retailers = products ? products.retailers : {};
+      var regularCoupons = coupons.coupons;
+      if (coupons.alwaysAutoExpand === 'true' ||
+        (coupons.auto_expand === "true" && $.joy.get(regularCoupons[0], 'featured') != null)) {
+        var $autoDropdown = (coupons.source === 'lite-chrome' && retailers && retailers.length > 0) ? $doms.comparePricesBtn : $doms.couponsBtn;
+        $autoDropdown.trigger('click');
+        // Push even to mixpanel
+        var uid = getUID();
+        mixpanel.identify(uid);
+        mixpanel.track(
+          "Coupons Auto Expand", {
+            "toolbar": "PriceBlink",
+            "uid": uid,
+            "retailer": g_retailer_name
+          }
+        );
+      }
+    }
+
+    function showGoldenToolbar(coupons, products) {
+      var couponsList = (coupons || {}).coupons;
+      if ((!products || products.length === 0) &&
+        (!couponsList || couponsList.length === 0 || !couponsList[0].featured)) {
+        $doms.messageTitle.hide();
+        return;
+      }
+      $doms.theme = 'golden';
+      if (isFromInvisibleHand()) {
+        $('#logoImg').attr('src', 'images/invisible-hand-logo.png');
+      } else {
+        $('#logoImg').attr('src', 'images/pb_logo_big.png').addClass('price-blink-logo');
+      }
+      $('.price-blink-toolbar').addClass('golden');
+    }
+  }
+
+  /**
+   * Extract the current UID
+   * @returns {*|string}
+   */
+  function getUID() {
+    return $.joy.extractParam($('.coupon-item-link').attr('href'), 'uid')
+      || $.joy.extractParam($('.dropdown-list-item-link').attr('href'), 'uid')
+      || '';
+    }
+  
+ /**
+  * Extract the current retailer ID
+  * @returns {*|string}
+  */
+ function getRetailerID() {
+   return $.joy.extractParam($('.coupon-item-link').attr('href'), 'f')
+     || $.joy.extractParam($('.dropdown-list-item-link').attr('href'), 'f')
+     || '';
+   }
+
+  // Coupons menu open
+  // Hide some content if the window width is not wide enough
+  function responsive() {
+    $.joy.debounce(function () {
+      var elements = [
+        $doms.toolbarLeft,
+        $doms.toolbarRight,
+        $doms.messageTitle,
+        $doms.toolbarBtns
+      ];
+      var contentWidth = elements.reduce(function (widthSum, $item) {
+        return widthSum + $item.width();
+      }, 0);
+      $doms.message.css('max-width', $doms.window.width() - contentWidth);
+    }, 20);
+  }
+
+  /**
+   * Initializations
+   */
+  function init() {
+    bindEvents();
+
+    // Called by toolbar_minimized.html to restore the toolbar from minimized status.
+    window.restoreToolbar = function () {
+      parent.postMessage('restore', '*');
+    };
+    setTimeout(function () {
+      responsive();
+    }, 500);
+
+    function bindEvents() {
+      $doms.window.resize(responsive);
+      $doms.fullScreenOverlay.click(function hideAllDropdowns() {
+        $('.dropdown-list').slideUp();
+        $('.dropdown-results-list').scrollTop(0);
+        $('.toolbar-btn-icon-arrow').text('arrow_drop_down');
+        $('#pb-notification').hide();
+        $doms.parent.minimize();
+      });
+      $doms.couponsBtn.click(toggleDropdownAndAdjustIcons);
+      $doms.comparePricesBtn.click(toggleDropdownAndAdjustIcons);
+      $doms.reviewsBtn.click(toggleDropdown);
+      $doms.settingsIcon.click(toggleDropdown);
+      $doms.closeToolbarIcon.click(closeToolbar);
+      $('#openOptionsLink').click($doms.parent.options);
+    }
+
+    /**
+     * Toggle the dropdown
+     */
+      // Variable to avoid too fast operation when user clicks the dropdown button too fast
+    var isSliding = false;
+
+    function toggleDropdown() {
+      $('#pb-notification').hide();
+      if (isSliding) return;
+      isSliding = true;
+      var $btn = $(this),
+        $allDropdowns = $('.dropdown-list'),
+        $dropdownContainer = $btn.find('.dropdown-list');
+      $dropdownContainer.toggleClass('triangle-left', ($btn.offset().left + $btn.width() < 450));
+      $('.toolbar-btn-icon-arrow').text('arrow_drop_down');
+      for (var i = 0; i < $allDropdowns.length; i++) {
+        $dropdownContainer[0] !== $allDropdowns[i] && $($allDropdowns[i]).hide();
+      }
+      var isCollapsed = $dropdownContainer.css('display') === 'none';
+
+      // Maximize to make room for the dropdown
+      var $thisArrow = $btn.find('.toolbar-btn-icon-arrow');
+      $thisArrow && $thisArrow.text(isCollapsed ? 'arrow_drop_up' : 'arrow_drop_down');
+      isCollapsed && $doms.parent.maximize();
+      $dropdownContainer.slideToggle("fast");
+      setTimeout(function () {
+        isSliding = false;
+      }, 500);
+      // When collapsing, timeout to wait for the sliding up animation to finish
+      !isCollapsed && $doms.parent.minimize();
+    }
+
+    // The temp variable to make sure the adjustment is done once only
+    var hasAdjustedIcons = {};
+
+    function toggleDropdownAndAdjustIcons() {
+      toggleDropdown.bind(this)();
+      var $btn = $(this);
+      if (!hasAdjustedIcons[$btn.attr('id')]) {
+        hasAdjustedIcons[$btn.attr('id')] = true;
+        setTimeout(adjustIcon, 500);
+      }
+
+      // On the left side of result list item, an icon should be adjusted to be vertically centered.
+      function adjustIcon() {
+        var $coupons = $btn.find('.dropdown-list-item');
+        for (var i = 0; i < $coupons.length; i++) {
+          var $coupon = $($coupons[i]);
+          var $icon = $coupon.find('.coupon-list-icon');
+          if ($coupon.height() > 44) {
+            var top = ($coupon.height() / 2 - 25);
+            $icon.css('top', top);
+            $coupon.find('.coupon-code').css('top', top);
+          }
+          $icon.css({visibility: 'visible'});
+          $coupon.find('.coupon-code').css({visibility: 'visible'});
+        }
+      }
+    }
+
+    /**
+     * Close the toolbar
+     */
+    function closeToolbar() {
+      // Grab the uid from one of the coupon links
+      var uid = getUID();
+      mixpanel.identify(uid);
+      mixpanel.track(
+        "X Button Click",
+        {
+          "retailer": g_retailer_name,
+          "toolbar": "PriceBlink",
+          "uid": uid
+        }
+      );
+      $doms.parent.close();
+    }
+  }
+
+  /**
+   * Populate the dropdown of coupons
+   * @param data
+   */
+  function populateCouponsDropdown(data) {
+    if (!data || !$.isArray(data) || !data[0]) return;
+    var $list = $('#couponsDropdown'),
+      realData = data[0],
+      regularCoupons = realData.coupons,
+      userCoupons = realData.users_coupons,
+      retailer = realData.retailer || {};
+    couponText = i18nCouponText(retailer.country || "");
+
+    if (realData.disabled_status === 0) {
+      $('#settingsCouponStatusText').text('off');
+      $('#disableCouponsLink').click($doms.parent.hide);
+    } else {
+      $('#settingsCouponStatusText').text('on');
+      $('#disableCouponsLink').click($doms.parent.restore);
+    }
+    if (realData.source === 'lite-chrome') {
+      $('#settingsSwitchCoupons').hide();
+    }
+
+    if (regularCoupons.length <= 0) {
+      $doms.couponsBtn.hide();
+      return;
+    }
+
+    // Temporarily store name for click analysis
+    if (realData.retailer.name)
+      g_retailer_name = realData.retailer.name;
+
+    $doms.couponsBtn.show();
+    $('#i18nCoupons').text(couponText);
+    $('#couponsCount').text((regularCoupons || []).length + (userCoupons || []).length);
+    setMessage();
+    populateDropdownContent();
+    statisticsNotify();
+    responsive();
+    bindEvent2ShowCouponCode();
+
+    // Populate the content of dropdown list
+    function populateDropdownContent() {
+      $list.empty();
+      $list.append('<div class="dropdown-list-top"><div class="dropdown-list-top-triangle"></div></div>');
+      appendCoupons(regularCoupons);
+      appendCoupons(userCoupons);
+      appendLinksBelow();
+    }
+
+    // Generate coupons in list
+    function appendCoupons(coupons) {
+      var itemsStr = '';
+      var hasAtLeastOneCouponCode = false;
+      if (!$.isArray(coupons)) return;
+      itemsStr += '<ul class="dropdown-results-list overflow-y-auto">';
+      for (var i = 0; i < coupons.length; i++) {
+        var coupon_url = coupons[i].url + '&ppg=' + ((ppg === 1) ? 1 : 0);
+        itemsStr += '<li class="dropdown-list-item coupon-item">';
+        // If there is a coupon code let's open in the background else we redirect
+        if (coupons[i].code) {
+          itemsStr += '<a title="Click to view coupon details (open a new tab)" href="javascript:void(0);" target="_blank" class="coupon-item-link dropdown-list-item-link" data-url="' + coupon_url + '">';
+        } else {
+          itemsStr += '<a title="Click to view coupon details (open a new tab)" href="' + coupon_url + '" target="_blank" class="coupon-item-link dropdown-list-item-link">';
+        }
+        itemsStr += '<i class="material-icons coupon-list-icon">loyalty</i>';
+        itemsStr += '<span class="coupon-text">' + replaceCouponText(coupons[i].label) + '</span>';
+        itemsStr += (isFromInvisibleHand() && coupons[i].code) ? '<span title="Click to view coupon code" data-code="' + coupons[i].code + '" data-url="' + coupon_url + '" class="inline-block coupon-code">View & Copy Code</span>' : '';
+        itemsStr += '</a></li>';
+        coupons[i].code && (hasAtLeastOneCouponCode = true);
+      }
+      itemsStr += '</ul>';
+      // console.log('hasAtLeastOneCouponCode', hasAtLeastOneCouponCode);
+      if (!hasAtLeastOneCouponCode) {
+        itemsStr = itemsStr.replace(/coupon\-code/g, 'hidden');
+        itemsStr = itemsStr.replace(/coupon\-text/g, 'coupon-text wide');
+      }
+      $list.append(itemsStr);
+    }
+
+    // This is called through `onclick` in the HTML markup, so store it globally
+    window.disableCoupons = function () {
+      var hide = confirm("Are you sure you want to PERMANENTLY disable coupon notifications for this merchant?  If you'd just like to hide coupon notifications for this browsing session, click \"Cancel\" below and then click the X on the right edge of the toolbar.");
+      if (hide) {
+        parent.postMessage('hide', '*');
+      }
+    };
+
+    // In IH coupon code cases we open the tab in the background and reveal the code
+    window.handleCouponClick = function (url) {
+      console.log('url', url);
+      // If in IH and there is a code
+      if (isFromInvisibleHand()) {
+        // IH Extension ID
+        $doms.parent.openUrl(url);
+      } else {
+        document.location.href = url;
+      }
+    };
+
+    // Populate the links below the coupon list
+    function appendLinksBelow() {
+      var linksBelowConfigs = [{
+        fieldName: 'more_coupons',
+        icon: 'more_horiz'
+      }, {
+        fieldName: 'notify_coupons',
+        icon: 'notifications',
+        notSupportedByPartner: "1"
+      }, {
+        fieldName: 'submit_coupons',
+        icon: 'share',
+        notSupportedByPartner: "1",
+        // }, {
+        //   fieldName: 'promo',
+        //   icon: 'thumb_up'
+      }];
+      var itemsStr = '';
+      linksBelowConfigs.forEach(function (item) {
+        var fieldObj = realData[item.fieldName];
+        if (typeof fieldObj !== 'object') return;
+        if (partnerid === item.notSupportedByPartner) {
+          return;
+        }
+        itemsStr += '<div class="dropdown-list-item dropdown-list-link ' + (itemsStr ? '' : 'first') + '">';
+        itemsStr += '<a href="' + fieldObj.url + '" target="_blank" class="coupon-item-link">';
+        itemsStr += '<i class="material-icons coupon-list-icon dropdown-list-link-icon">' + item.icon + '</i>';
+        itemsStr += '<span class="dropdown-list-link-text">' + replaceCouponText(fieldObj.label) + '</span>';
+        itemsStr += '</a></div>';
+      });
+      // Display coupon disable message for FF and Chrome
+      var browser = navigator.userAgent;
+      if (realData.source != 'lite-chrome' &&
+        (browser.indexOf("Firefox") != -1 || browser.indexOf("Chrome") != -1 || browser.indexOf("Safari") != -1)) {
+        itemsStr += '<div class="dropdown-list-item dropdown-list-link">';
+        itemsStr += '<a href="javascript:void(0);" class="coupon-item-link" onclick="disableCoupons();">';
+        itemsStr += '<i class="material-icons coupon-list-icon dropdown-list-link-icon">block</i>';
+        itemsStr += '<span class="inline-block dropdown-list-link-text">';
+        itemsStr += 'Hide ' + couponText + ' for this Merchant';
+        itemsStr += '</span></a></div>';
+      }
+      $list.append(itemsStr);
+    }
+
+    // i18n
+    function i18nCouponText(country) {
+      var labels = {
+        'us': 'Coupons',
+        'uk': 'Vouchers'
+      };
+      country = country || 'us';
+      return labels[country.toLowerCase()] || 'Coupons';
+    }
+
+    function replaceCouponText(text) {
+      return (text || '').replace("coupons", couponText.toLowerCase());
+    }
+
+    // Set the highlight message.
+    function setMessage() {
+      var couponsCount = regularCoupons.length + (userCoupons || []).length;
+      var message = "PriceBlink has found " + couponsCount + " " + ($.joy.get(realData, 'retailer.name') || '') + " " + couponText.toLowerCase();
+      if (!userCoupons && regularCoupons[0] && regularCoupons[0].featured) {
+        message = regularCoupons[0].label;
+      }
+      couponsCount > 0 && $('#messageTitle').text(couponText + ' Found! ');
+      $doms.message.html(message);
+      $doms.message.attr('title', message);
+    }
+
+    function statisticsNotify() {
+      var installDate = $.cookie("pb_install_date");
+      if (installDate == "") return; // No cookie so let's stop
+      installDate = parseInt(installDate) * 1000;
+      var one_day = 1000 * 60 * 60 * 24;
+      var today = new Date().getTime();
+      var daysFromInstall = Math.ceil((today - installDate) / one_day);
+      if (daysFromInstall >= 30 && daysFromInstall <= 40) {
+        displayNotification("/surveys/pb_feedback_new.php?uid=" + getUID());
+      }
+    }
+
+    function bindEvent2ShowCouponCode() {
+      window.setTimeout(function () {
+        $('.coupon-item-link').click(function (e) {
+          const $link = $(this);
+          const $code = $link.find('.coupon-code');
+          if ($code.length > 0) {
+            e.stopPropagation();
+            e.preventDefault();
+            const code = $code.data('code');
+            $code.addClass('revealed');
+            code && $code.html(code + '&nbsp;&nbsp;(copied)');
+            $code.css('cursor', 'default');
+            $code.attr('title', 'Click to view and copy the code to your clipboard.');
+            // Open the coupon click in the background
+            handleCouponClick($link.data('url'));
+            $.joy.copyToClipboard(code);
+          }
+        });
+      });
+    }
+  }
+
+  /**
+   * Populate the dropdown showing prices
+   * @param products
+   * @param coupons
+   */
+  function populateComparePricesDropdown(products, coupons) {
+    var $list = $('#comparePriceDropdown'),
+      productsResult = products[0],
+      currentOffer = productsResult.current_offer,
+      retailers = productsResult["retailers"],
+      message = productsResult["ship_message"].replace("Savings Found!", '<span class="toolbar-attention">Savings Found!</span>');
+
+    // Don't continue if there are no price alternatives
+    if (!retailers || $.isEmptyObject(retailers)) {
+      // Handle the case where we have coupons but no price alternatives. We let the user know that we tried to find prices, but couldn't
+      if (coupons[0].coupons.length > 0 && !coupons[0].coupons[0].featured) {
+        var couponMessage = $doms.message.html().replace("PriceBlink has found ", "");
+        var fullMesage = "Sorry, no price comparison results found for this product. " + couponMessage + " available.";
+        $doms.message.html(fullMesage).attr('title', fullMesage);
+      }
+      return;
+    }
+    setMessage();
+    $list.empty();
+    appendCurrentOffer();
+    appendListItems();
+    setTimeout(function () {
+      appendTrackingPixel();
+      appendSeeMoreLink();
+      appendLinksBelow();
+      (partnerid !== "1") && customizeRightIconActions();
+      responsive();
+      checkSavingsFoundNotification();
+    }, 500);
+
+    function setMessage() {
+      $doms.comparePricesBtn.show();
+      $doms.message.show().html(message).attr('title', message);
+      if (message.indexOf(' at ') >= 0) {
+        $doms.message.html(message.split(" at ")[0] + " at <a style=\"color:black;font-weight:bold;text-decoration: underline;\" onclick=\"window.open('" + retailers[0].url + "')\" href=\"#\">" + retailers[0].retailer_name + "</a>");
+      }
+      var count = Object.keys(retailers).length;
+      count > 0 && ($('#messageTitle').text(''));
+      $('#comparePricesCount').text(count);
+    }
+
+    function appendCurrentOffer() {
+      var s = '<div class="dropdown-list-top">';
+      s += '<div class="dropdown-list-top-triangle"></div>';
+      s += '</div>';
+
+      if (currentOffer) {
+        var shippingAndTax = currentOffer['shipping+tax'];
+        var totalPrice = currentOffer['total price'];
+        s += '<div id="compare-prices-current-offer">';
+
+        // Left
+        s += '<div class="">';
+        s += '<h3>Total Current Price</h3>';
+        s += '<p class="name">' + currentOffer.name + '</p>';
+        s += '</div>';
+
+        // Right
+        s += '<div class="prices">';
+        s += '<div class="row">';
+        s += '<div class="price-item">Price</div>';
+        s += '<div>' + currentOffer.price + '</div>';
+        s += '</div>';
+        s += '<div class="row">';
+        s += '<div class="price-item">Shipping & Tax<br><span class="location">' + currentOffer.location + '</span></div>';
+        s += '<div>' + shippingAndTax + '</div>';
+        s += '</div>';
+        s += '<div class="total-price">';
+        s += '<div class="price-item"><strong>Total Price</strong></div>';
+        s += '<div><strong>' + totalPrice + '</strong></div>';
+        s += '</div>';
+        s += '</div>';
+      }
+
+      $list.append(s);
+    }
+
+    function appendListItems() {
+      // There are cases where we cannot show sales tax for a particular request. Usually it's because we either don't know the sales tax or shipping for the page the user is on. Let's check for the non-existence of base_price and give them the two column layout.
+      var hasBasePrice = !!(retailers[0].base_price);
+      var listStr = '<div id="compare-prices-content" class="' + (currentOffer ? 'narrower' : '') + '">';
+      if (showThreeColumns && hasBasePrice) {
+        listStr += '<div id="compare-prices-headers">';
+        listStr += '<div id="compare-prices-header-logo">Available Sellers</div>';
+        listStr += '<div id="compare-prices-header-base-price">Base Price</div>';
+        listStr += '<div id="compare-prices-header-total-price">Total Price</div>';
+        listStr += '</div>';
+      } else {
+        $('#comparePriceDropdown').addClass('two-columns');
+      }
+      listStr += '<ul class="dropdown-results-list">';
+      for (var desc in retailers) {
+        var r = retailers[desc],
+          name = r["name"] || '',
+          basePrice = r["base_price"] || 'UNKNOWN',
+          totalPrice = r["price"] || 'UNKNOWN',
+          shipping = r["shipping"] || 'No shipping info.',
+          url = r["url"] || '',
+          retailerName = r["retailer_name"] || '',
+          retailerLogo = r["retailer_logo"] || '',
+          priceClass = shipping.toLowerCase() === 'free shipping' ? 'dropdown-list-price-free' : '';
+
+        listStr += '<li class="dropdown-list-item">';
+        listStr += '<a target="_blank" href="' + url + '" class="dropdown-list-item-link">';
+
+        // logo and retailer name
+        listStr += '<div class="dropdown-list-retailer flex">';
+        // If no logo, show retailer name
+        if (retailerLogo) {
+          listStr += '<div class="vertical-center">';
+          listStr += '<img src="' + retailerLogo + '" class="dropdown-logo-image">';
+          listStr += '</div>';
+        } else {
+          listStr += '<div class="vertical-center">';
+          listStr += '<h3 class="dropdown-list-retailer-name" title="' + (name || retailerName) + '">' + retailerName + '</h3>';
+          listStr += '</div>';
+        }
+        listStr += '</div>';
+
+        if (showThreeColumns && hasBasePrice) {
+          var widthAuto = 'width-auto';
+          var priceHolderClass = 'dropdown-list-total-price';
+          if (totalPrice !== 'Check New & Used Prices') {
+            // base pricing
+            widthAuto = '';
+            listStr += '<div class="dropdown-list-base-price vertical-center">';
+            listStr += '<div>';
+            listStr += '<div title="' + basePrice + '">' + basePrice + '</div>';
+            listStr += '<div class="dropdown-list-price-shipping ' + priceClass + '" title="' + shipping + '">' + shipping + '</div>';
+            listStr += '</div></div>';
+          } else {
+            priceHolderClass = 'dropdown-list-base-price';
+          }
+
+          // total pricing
+          listStr += '<div class="' + priceHolderClass + ' ' + widthAuto + ' vertical-center">';
+          listStr += '<span title="' + totalPrice + '">' + totalPrice + '</span>';
+          listStr += '</div>';
+        } else {
+          listStr += '<div class="dropdown-list-2-columns-price width-auto vertical-center">';
+          listStr += '<div>';
+          listStr += '<div title="' + totalPrice + '">' + totalPrice + '</div>';
+          listStr += '<div class="dropdown-list-price-shipping ' + priceClass + '" title="' + shipping + '">' + shipping + '</div>';
+          listStr += '</div></div>';
+        }
+        listStr += '</a></li>';
+      }
+      listStr += '</ul>';
+      listStr += '</div>';
+      $list.append(listStr);
+    }
+    
+    function appendTrackingPixel() {
+      
+      // Determine the group id, 1 means showing ebay results, 2 means don't show ebay results
+      // Split test cookie is set in parser
+      var ab_group = $.joy.getCookie("ab_group").split(",");
+      
+      // eBay incrementality test = 12
+      var test_id = parseInt(ab_group[0]);
+      
+      // Cell 1 gets eBay results, cell 2 does not
+      var cell_id = parseInt(ab_group[1]);
+      
+      // Our cell_id of 2 is eBay's 0 (do not show eBay results)
+      if (cell_id == 2)
+        cell_id = "0";
+      
+      var rand = Math.floor(Math.random()*999999999999);
+      var uid = getUID();
+      var rid = getRetailerID();
+      
+      if (ab_group == "") {
+        test_id = "12";
+        cell_id = "1";
+      }
+      
+      // Don't show pixel on eBay
+      if (rid == "730") return;
+      
+      var pixel = '<img style="text-decoration:none;border:0;padding:0;margin:0;" src="https://rover.ebay.com/roverimp/1/711-53200-19255-0/1?pub=5574950868&toolid=20000&campid=5336788270&mpt=' + rand + '&ffa=' + uid + '&ffb=' + cell_id + '">';
+
+      $('.price-blink-toolbar').append(pixel);
+    }
+
+    function appendSeeMoreLink() {
+      var resultsCount = Object.keys(retailers).length,
+        $resultsList = $list.find('.dropdown-results-list');
+      if (resultsCount > 4) {
+        $list.append('<div class="dropdown-list-see-more">See ' + (resultsCount - 4) + ' more results</div>');
+        $list.delegate('.dropdown-list-see-more', 'click', function (e) {
+          e.stopPropagation();
+          e.preventDefault();
+          $(this).text('No more results').hide();
+          $resultsList.addClass('overflow-y-auto');
+          $resultsList.stop().animate({scrollTop: 320}, '500');
+        });
+      } else {
+      }
+    }
+
+    function appendLinksBelow() {
+      var linksBelowConfigs = [{
+        //   fieldPath: 'checkpricehistory',
+        //   id: 'priceHistory',
+        //   label: 'View Price History',
+        //   icon: 'trending_down'
+        // }, {
+        fieldPath: 'feedback.url',
+        id: 'sendFeedback',
+        label: 'Send us Feedback about these results',
+        icon: 'hearing'
+        // }, {
+        //   fieldPath: 'promo.url',
+        //   labelPath: 'promo.label',
+        //   icon: 'thumb_up'
+      }];
+      var itemsStr = '';
+      linksBelowConfigs.forEach(function (item) {
+        var href = $.joy.get(productsResult, item.fieldPath);
+        if (!href) return;
+        var label = item.label || $.joy.get(productsResult, item.labelPath) || '';
+        itemsStr += '<div class="dropdown-list-item dropdown-list-link ' + (itemsStr ? ' ' : 'first ') + (currentOffer ? 'narrower' : '') + '">';
+        itemsStr += '<a href="' + href + '" target="_blank" class="coupon-item-link" title="' + label + '">';
+        itemsStr += '<i class="material-icons coupon-list-icon dropdown-list-link-icon">' + item.icon + '</i>';
+        itemsStr += '<span class="dropdown-list-link-text">' + label + '</span>';
+        itemsStr += '</a></div>';
+      });
+      $list.append(itemsStr);
+    }
+
+    // Display or hide the two icons on the right
+    function customizeRightIconActions() {
+      var actionsConfigs = [{
+        fieldName: 'addtowishlist',
+        iconId: 'wishListIcon',
+        urlSuffix: "&itemurl=" + encodeURIComponent(document.referrer)
+      }, {
+        fieldName: 'checkpricehistory',
+        iconId: 'priceHistoryIcon'
+      }];
+      actionsConfigs.forEach(function (config) {
+        var url = productsResult[config.fieldName];
+        if (url) {
+          $doms[config.iconId].removeClass('hidden');
+          $doms[config.iconId].attr('href', url + (config.urlSuffix || ''));
+          $doms.toolbarRight.css('flex', '0 0 ' + ($doms.toolbarRight.width() + $doms.closeToolbarIcon.width()) + 'px');
+        } else {
+          $doms[config.iconId].hide();
+        }
+      });
+    }
+
+    // Savings confirmation popup
+    function checkSavingsFoundNotification() {
+      setTimeout(function () {
+        if ($.cookie("messagetype") == "confirmed_savings") {
+          //var savings_amount = get_cookie("messageamount");
+          displayNotification("/surveys/review_popup.php?" + new Date().getTime());
+        }
+      }, 1000);
+    }
+  }
+
+  /**
+   * Populate the reviews dropdown
+   * @param reviews
+   */
+  function populateReviewsDropdown(reviews) {
+    if (!reviews || !$.isArray(reviews) || !reviews[0]) return;
+    var $list = $('#reviewsDropdown');
+    $doms.reviewsBtn.show();    
+    $list.empty();
+    $list.append('<div class="dropdown-list-top"><div class="dropdown-list-top-triangle"></div></div>');
+
+    $('#reviewsCount').text(reviews.length);
+    appendListItems();
+
+    function appendListItems() {
+      var listStr = '<ul class="dropdown-results-list">';
+      for (var i = 0; i < reviews.length; i++) {
+        var r = reviews[i],
+          noStars = getNumberOfStars(r.rating || 0),
+          reviewText = r.rating_count > 1 ? 'Reviews' : 'Review';
+        listStr += '<li class="dropdown-list-item"><a href="' + r.url + '" target="_blank" class="dropdown-list-item-link">';
+        listStr += '<div class="dropdown-list-stars">';
+        for (var j = 1; j <= noStars; j++) {
+          listStr += '<i class="material-icons reviews-star-icon">star</i>';
+        }
+        if (noStars !== Math.ceil(noStars)) {
+          listStr += '<i class="material-icons reviews-star-icon">star_half</i>';
+        }
+        for (var j = Math.ceil(noStars); j < 5; j++) {
+          listStr += '<i class="material-icons reviews-star-icon">star_border</i>';
+        }
+        listStr += '<span class="dropdown-list-rating">' + r.rating + '</span>';
+        listStr += '</div>';
+        listStr += '<h3 class="dropdown-list-price-exact reviews-retailer">' + r.retailer_name + '</h3>';
+        listStr += '<div class="reviews-count">(' + (r.rating_count || 0) + ' ' + reviewText + ')</div>';
+        listStr += '</a></li>';
+      }
+      listStr += '</ul>';
+      $list.append(listStr);
+    }
+
+    function getNumberOfStars(input) {
+      return Math.floor((input - 0.25) / 0.5 + 1) / 2;
+    }
+  }
+
+  // Feedback survey notification
+  function displayNotification(url) {
+    setTimeout(function () {
+      var width = 495,
+        height = 375,
+        $notification = $('#pb-notification'),
+        popup_x = (window.innerWidth ? window.innerWidth : document.documentElement.clientWidth ? document.documentElement.clientWidth : screen.width) / 2;
+      popup_x = popup_x - width / 2;
+
+      $notification.css("width", width + "px");
+      $notification.css("height", height + "px");
+      $doms.parent.maximize('');
+      $notification.overlay({
+        top: 50,
+        left: popup_x,
+        mask: {
+          color: '#fff',
+          loadSpeed: 200,
+          opacity: 0.5
+        },
+        //closeOnClick: false,
+        load: true,
+        // Restore the iframe to its original height and delete the notification cookie
+        onClose: function () {
+          $doms.parent.minimize();
+        }
+      });
+
+      $("#pb-notification-iframe").css("height", "375px").attr("src", url);
+    }, 1000);
+  }
+
+  init();
+});

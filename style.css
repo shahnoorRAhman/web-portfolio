@@ -1,0 +1,69 @@
+body{
+    font-family: 'Poppins', sans-serif;
+    margin: 0px;
+}
+h1{
+    font-size: 55px;
+}
+h2{
+    font-size: 30px;
+    background-image: repeating-linear-gradient(rgb(230, 173, 222), violet);
+    text-align: center;
+    border-radius: 10px;
+
+}
+.top-header{
+    color: black;
+    background-image: repeating-linear-gradient(rgb(230, 173, 222), violet);
+    text-align: center;
+    border-radius: 10px;
+}
+.h3-header{
+    color: black;
+    text-align: center ;
+    border-radius: 10px;
+}
+p{
+    color: dimgray;
+}
+.name{
+    color: rgb(202, 76, 125);
+}
+.half-width{
+    width: 40%;
+    float: left;
+    margin-left: 5%;
+    padding-left: 2%;
+}
+.half-width img{
+    width: 100%;
+}
+.top-banner{
+    background-image: url("images/top-banner.png");
+    background-repeat: no-repeat;
+}
+section{
+    height: 550px;
+}
+.link-button{
+    text-decoration: none;
+    background-image: repeating-linear-gradient(lightblue, violet);
+    padding: 8px 15px;
+    border-radius: 10px;
+    color: white;
+    font-weight: 700;
+    text-align: center;
+    margin-left: 50px;
+}
+.half-width1{
+    width: 40%;
+    float: left;
+    margin-left: 5%;
+    padding-left: 2%;
+}
+.dream-area{
+    background-image: url("images/dream-bg.png");
+    background-repeat: no-repeat;
+    background-position: right bottom;
+
+}

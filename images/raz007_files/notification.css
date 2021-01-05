@@ -1,0 +1,39 @@
+#pb-notification,#pb-push-coupons-overlay {
+	display:none;
+	width:425px;
+	height: 150px;
+	/*border:10px solid #666;*/
+	/* for modern browsers use semi-transparent color on the border */
+	/*border:5px solid rgba(82, 82, 82, 0.3);*/
+	/* CSS3 features for mozilla and webkit-based browsers (rounded borders) */
+	-moz-border-radius:5px;
+	-webkit-border-radius:5px;
+	font-family: Arial;
+	/*background-color:#fff;*/
+	z-index: 10000;
+}
+
+#pb-push-coupons-overlay {
+	width:  450px;
+	height: 500px;	
+}
+
+#pb-notification .close ,#pb-push-coupons-overlay .close{
+	background-image:url(http://jquerytools.github.io/media/img/overlay/close.png);
+	position:absolute;
+	right:-15px;
+	top:-15px;
+	cursor:pointer;
+	height:35px;
+	width:35px;
+}
+
+#pb-push-coupons-overlay .close{
+	right:-18px;
+	top:-30px;	
+}
+
+
+#pb-push-coupons-iframe {
+    overflow: scroll;
+}

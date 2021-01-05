@@ -1,0 +1,82 @@
+/** All Sites **/
+/** http://www.moosejaw.com/moosejaw/shop/home____: hide all iframes **/
+#pb-iframe {
+  display: block !important;
+}
+
+/* https://www.coupons.com/ */
+body.priceblink-body.pb-retailer-coupons-com #header {
+  position: static;
+}
+body.priceblink-body.pb-retailer-coupons-com #hero {
+  margin-top: 0;
+}
+
+/* https://www.birchbox.com/ */
+body.priceblink-body.pb-retailer-birchbox-com header.site-header {
+  top: -116px !important;
+}
+
+/* http://www.urbanoutfitters.com/uk/index.jsp */
+body.priceblink-body.pb-retailer-urbanoutfitters-com .miniFooter {
+  position: static;
+}
+
+/* http://www.skiset.co.uk/ */
+body.priceblink-body.pb-retailer-skiset-co-uk .navbar-fixed-top {
+  position: static !important;
+}
+body.priceblink-body.pb-retailer-skiset-co-uk .wrapper {
+  margin-top: 0 !important;
+}
+
+/* https://jet.com/ */
+body.pb-retailer-jet-com header#nav {
+  top: 36px !important;
+}
+
+/* https://www.hertzcarsales.com/r2bhowitworks */
+body.pb-retailer-hertzcarsales-com #aem-overlay-video {
+  top: 100px !important;
+}
+
+/* https://www.evestemptation.com/ */
+body.pb-retailer-evestemptation-com #egnewsletter_popup_box {
+  top: 250px !important;
+}
+
+/* https://www.tracfone.com/serviceplan/basic */
+body.pb-retailer-tracfone-com.modal-open .modal {
+  display: flex !important;
+  overflow-y: hidden !important;
+}
+body.pb-retailer-tracfone-com .modal-dialog {
+  top: 100px !important;
+  margin: 0 auto !important;
+}
+
+/* Click image to view original: https://www.carid.com/yakima/skybox-carbonite-roof-cargo-box.html?gclid=Cj0KEQjwg47KBRDk7LSu4LTD8eEBEiQAO4O6r1ecW0f1If-oAe2bl9AEFsqDqky7SHBMTwRywyVxJfMaAtQx8P8HAQ */
+body.pb-retailer-carid-com .gbox_content_wrap {
+  position: absolute !important;
+  top: 220px !important;
+  left: 0 !important;
+}
+
+/* Apple */
+body.pb-retailer-apple-com #ac-globalnav {
+  margin-top: 36px !important;
+}
+/* go pro */
+body.pb-retailer-shop-gopro-com div nav div#gpl-marketing-main-nav {
+    top: 36px!important;
+}
+body.pb-retailer-shop-gopro-com div nav div#gpl-marketing-subnav-wrapper {
+    top: 36px!important;
+}
+/* casper */
+body.pb-retailer-casper-com header.HeaderNew__container___1vlcp{
+    top:36px!important;
+}
+body.pb-retailer-casper-com div.BuyBar__container___FWdL6{
+    top: 6.125rem!important;
+}
